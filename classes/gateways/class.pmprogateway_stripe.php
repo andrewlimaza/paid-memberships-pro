@@ -2391,11 +2391,12 @@ class PMProGateway_stripe extends PMProGateway {
 			$order->plan->delete();
 		} catch ( Stripe\Error\Base $e ) {
 			$order->error = $e->getMessage();
-
+			return false;
+		}  catch ( Throwable $e ) {
+			$order->error = $e->getMessage();
 			return false;
 		} catch ( Exception $e ) {
 			$order->error = $e->getMessage();
-
 			return false;
 		}
 
