@@ -9,6 +9,7 @@ use Stripe\SetupIntent as Stripe_SetupIntent;
 use Stripe\Source as Stripe_Source;
 use Stripe\PaymentMethod as Stripe_PaymentMethod;
 use Stripe\Subscription as Stripe_Subscription;
+use Stripe\WebhookEndpoint as Stripe_Webhook;
 
 define( "PMPRO_STRIPE_API_VERSION", "2019-05-16" );
 
@@ -438,6 +439,55 @@ class PMProGateway_stripe extends PMProGateway {
 		}
 
 		return $fields;
+	}
+
+	/**
+	 * Get available webhooks
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_get_webhooks( $limit = 10 ) {
+		return Stripe_Webhook::all(["limit" => $limit]);	
+	}
+
+	/**
+	 * Get current webhook URL for website to compare.
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_get_site_webhook_url() {
+		return admin_url( 'admin-ajax.php' ) . '?action=stripe_webhook';
+	}
+
+	/**
+	 * List of current enabled events required for PMPro to work.
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_webhook_events() {
+		return apply_filters( 'pmpro_stripe_webhook_events', array(
+			'invoice.payment_succeeded',
+			'invoice.payment_action_required',
+			'customer.subscription.deleted',
+			'charge.failed'
+		) );
+	}
+
+	/**
+	 * Update required webhook enabled events.
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_update_webhook_events( $webhook_id, $events = NULL ) {
+
+		if ( empty( $events ) ) {
+			$events = self::pmpro_webhook_events();
+		}
+
+		Stripe_Webhook::update( 
+			$webhook_id,
+			['enabled_events' => $events ]
+		);
 	}
 
 	/**
@@ -2004,13 +2054,11 @@ class PMProGateway_stripe extends PMProGateway {
 				if ( ! empty( $subscription ) ) {
 					$customer = $order->Gateway->getCustomer();
 					if ( ! $customer->delinquent && ! empty ( $subscription->current_period_end ) ) {
-						$offset = get_option( 'gmt_offset' );						
-						$timestamp = $subscription->current_period_end + ( $offset * 3600 );
+						return $subscription->current_period_end;
 					} elseif ( $customer->delinquent && ! empty( $subscription->current_period_start ) ) {
-						$offset = get_option( 'gmt_offset' );						
-						$timestamp = $subscription->current_period_start + ( $offset * 3600 );
+						return $subscription->current_period_start;
 					} else {
-						$timestamp = $false;  // shouldn't really get here
+						return $false;  // shouldn't really get here
 					}
 				}
 			}
