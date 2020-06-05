@@ -447,7 +447,7 @@ class PMProGateway_stripe extends PMProGateway {
 	 * @since 2.4
 	 */
 	static function pmpro_get_webhooks( $limit = 10 ) {
-		return Stripe_Webhook::all(["limit" => $limit]);	
+		return Stripe_Webhook::all( [ 'limit' => apply_filters( 'pmpro_stripe_webhook_retrieve_limit', $limit ) ] );	
 	}
 
 	/**
@@ -474,20 +474,96 @@ class PMProGateway_stripe extends PMProGateway {
 	}
 
 	/**
+	 * Create webhook with relevant events
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_create_webhook() {
+
+		$create = Stripe_Webhook::create([
+			'url' => self::pmpro_get_site_webhook_url(),
+			'enabled_events' => self::pmpro_webhook_events(),
+			'api_version' => PMPRO_STRIPE_API_VERSION
+		]);
+
+		if ( $create ) {
+			pmpro_setOption( 'stripe_webhook_updated_' . $create->id, true );
+			return true;
+		} else {
+			return $create; // Should contain error here.
+		}
+	}
+
+	/**
+	 * See if a webhook is registered with Stripe.
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_does_webhook_exist() {
+		$webhooks = self::pmpro_get_webhooks();
+
+		$webhook_id = false;
+		if ( ! empty( $webhooks ) ) {
+
+			$pmpro_webhook_url = self::pmpro_get_site_webhook_url();
+
+			foreach( $webhooks as $webhook ) {
+				if ( $webhook->url == $pmpro_webhook_url ) {
+					$webhook_id = $webhook->id;
+					$webhook_events = $webhook->enabled_events;
+					continue;
+				}
+			}
+		} else {
+			$webhook_id = false; // make sure it's false if none are found.
+		}
+
+		$webhook_data = array();
+		$webhook_data['webhook_id'] = $webhook_id;
+		if ( $webhook_id ) {
+			$webhook_data['enabled_events'] = $webhook_events;
+		}
+		
+		return $webhook_data;
+	}
+
+	/**
 	 * Update required webhook enabled events.
 	 * 
 	 * @since 2.4
 	 */
-	static function pmpro_update_webhook_events( $webhook_id, $events = NULL ) {
+	static function pmpro_update_webhook_events() {
 
-		if ( empty( $events ) ) {
-			$events = self::pmpro_webhook_events();
+		$webhook = self::pmpro_does_webhook_exist();
+
+		if ( ! $webhook['webhook_id'] ) {
+			return;
 		}
 
-		Stripe_Webhook::update( 
-			$webhook_id,
-			['enabled_events' => $events ]
-		);
+		if ( pmpro_getOption( 'stripe_webhook_updated_' . $webhook['webhook_id'] ) ){
+			return;
+		}
+
+		$pmpro_webhook_events = self::pmpro_webhook_events();
+		$event_missing = false;
+		foreach( $pmpro_webhook_events as $event ) {
+			if ( ! in_array( $event, $webhook['enabled_events'] ) ) {
+				$event_missing = true;
+			}
+		}
+
+		if ( $event_missing ) {
+			$events = array_unique( array_merge( $pmpro_webhook_events, $webhook['enabled_events'] ) );
+
+			Stripe_Webhook::update( 
+				$webhook['webhook_id'],
+				['enabled_events' => $events ]
+			);
+
+			// store this as already been updated.
+			pmpro_setOption( 'stripe_webhook_updated_' . $webhook['webhook_id'], true );
+		}
+		
 	}
 
 	/**
