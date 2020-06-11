@@ -23,6 +23,8 @@
 	//get/set settings
 	if(!empty($_REQUEST['savesettings']))
 	{
+
+		do_action( 'pmpro_before_saved_payment_options', $payment_options );
 		/*
 			Save any value that might have been passed in
 		*/
@@ -36,6 +38,8 @@
 				pmpro_setOption($option);
 			}
 		}
+
+		do_action( 'pmpro_after_saved_payment_options', $payment_options );
 
 		/*
 			Some special case options still worked out here

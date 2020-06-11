@@ -11,6 +11,7 @@ use Stripe\PaymentMethod as Stripe_PaymentMethod;
 use Stripe\Subscription as Stripe_Subscription;
 use Stripe\WebhookEndpoint as Stripe_Webhook;
 
+
 define( "PMPRO_STRIPE_API_VERSION", "2019-05-16" );
 
 //include pmprogateway
@@ -192,7 +193,24 @@ class PMProGateway_stripe extends PMProGateway {
 			) );
 		}
 
+		
+		add_action( 'pmpro_after_saved_payment_options', array( 'PMProGateway_stripe', 'pmpro_try_update_stripe_webhook' ), 10, 1 );
 		add_action( 'init', array( 'PMProGateway_stripe', 'pmpro_clear_saved_subscriptions' ) );
+	}
+
+	public static function pmpro_try_update_stripe_webhook( $payment_options ) {
+
+		if ( isset( $_REQUEST['gateway'] ) && $_REQUEST['gateway'] === 'stripe' ) {
+			
+			// check webhook now.
+			if ( isset( $_REQUEST['stripe_webhook'] ) ) {
+				$stripe = new PMProGateway_stripe();
+				$update_webhook = $stripe::pmpro_update_webhook_events();
+
+			} else {
+				delete_option( 'pmpro_stripe_webhook_updated' ); //remove the database option
+			}
+		}
 	}
 
 	/**
@@ -247,6 +265,7 @@ class PMProGateway_stripe extends PMProGateway {
 			'gateway_environment',
 			'stripe_secretkey',
 			'stripe_publishablekey',
+			'stripe_webhook',
 			'stripe_billingaddress',
 			'currency',
 			'use_ssl',
@@ -279,6 +298,39 @@ class PMProGateway_stripe extends PMProGateway {
 	 * @since 1.8
 	 */
 	static function pmpro_payment_option_fields( $values, $gateway ) {
+		
+		// Check if webhook is enabled or not.
+		$webhook = pmpro_getOption( 'pmpro_stripe_webhook_updated' );
+		if ( ! $webhook ) {
+			$stripe = new PMProGateway_stripe;
+			$webhook = $stripe::pmpro_does_webhook_exist();
+		}
+
+		$required_update = false;
+		// Check to see if events are missing.
+		if ( is_array( $webhook ) ) {
+
+			if ( $webhook['webhook_id'] == false ) {
+				$required_update = true;
+			}
+
+			if ( isset( $webhook['enabled_events'] ) ) {
+				$events = self::pmpro_check_missing_webhook_events( $webhook['enabled_events'] );
+
+				if ( $events ) {
+					$required_update = true;
+				} else {
+					$required_update = false;
+					pmpro_setOption( 'pmpro_stripe_webhook_updated', $webhook['webhook_id'] );
+				}
+			}
+
+		}
+
+		if ( ! $webhook ) {
+			$require_update = true;
+		}
+
 		?>
         <tr class="pmpro_settings_divider gateway gateway_stripe"
 		    <?php if ( $gateway != "stripe" ) { ?>style="display: none;"<?php } ?>>
@@ -311,6 +363,10 @@ class PMProGateway_stripe extends PMProGateway {
                 <input type="text" id="stripe_secretkey" name="stripe_secretkey" value="<?php echo esc_attr( $values['stripe_secretkey'] ) ?>" class="regular-text code" />
             </td>
         </tr>
+		<tr class="gateway gateway_stripe" <?php if ( $gateway != "stripe" ) { ?>style="display: none;"<?php } ?>>
+		<th><?php _e( 'Enable Webhook', 'paid-memberships-pro' ); ?></th>
+		<td><input type='checkbox' name='stripe_webhook' value='1' <?php echo checked( $values['stripe_webhook'], 1 ); ?>/><span>Select this option to enable automatic webhooks for Stripe.</span></td>
+		</tr>
         <tr class="gateway gateway_stripe" <?php if ( $gateway != "stripe" ) { ?>style="display: none;"<?php } ?>>
             <th scope="row" valign="top">
                 <label for="stripe_billingaddress"><?php _e( 'Show Billing Address Fields', 'paid-memberships-pro' ); ?>
@@ -331,8 +387,17 @@ class PMProGateway_stripe extends PMProGateway {
                 <label><?php _e( 'Web Hook URL', 'paid-memberships-pro' ); ?>:</label>
             </th>
             <td>
-                <p><?php _e( 'To fully integrate with Stripe, be sure to set your Web Hook URL to', 'paid-memberships-pro' ); ?></p>
-                <p><code><?php echo admin_url( "admin-ajax.php" ) . "?action=stripe_webhook"; ?></code></p>
+			<p><?php 
+				_e( 'To fully integrate with Stripe, be sure to set your Web Hook URL to', 'paid-memberships-pro' ); 
+				?></p>
+                <p><code><?php echo self::pmpro_get_site_webhook_url(); ?></code></p>
+				<p><small><?php 				
+				if ( ! $required_update ) {
+					_e( 'Your webhook seems to be updated and activated. If unsure, please check your Stripe dashboard for a webhook with the above URL.', 'paid-memberships-pro' );
+				} else {
+					echo 'Please select the enable webhook option to automatically setup and create a webhook in Stripe save your settings.';
+				}
+				?></small></p>
             </td>
         </tr>
 
@@ -446,7 +511,7 @@ class PMProGateway_stripe extends PMProGateway {
 	 * 
 	 * @since 2.4
 	 */
-	static function pmpro_get_webhooks( $limit = 10 ) {
+	static function pmpro_get_webhooks( $limit = 5 ) {
 		return Stripe_Webhook::all( [ 'limit' => apply_filters( 'pmpro_stripe_webhook_retrieve_limit', $limit ) ] );	
 	}
 
@@ -487,7 +552,7 @@ class PMProGateway_stripe extends PMProGateway {
 		]);
 
 		if ( $create ) {
-			pmpro_setOption( 'stripe_webhook_updated_' . $create->id, true );
+			pmpro_setOption( 'pmpro_stripe_webhook_updated', $create->id );
 			return true;
 		} else {
 			return $create; // Should contain error here.
@@ -500,6 +565,12 @@ class PMProGateway_stripe extends PMProGateway {
 	 * @since 2.4
 	 */
 	static function pmpro_does_webhook_exist() {
+
+		$saved_webhook = pmpro_getOption( 'pmpro_pmpro_stripe_webhook_updated', true );
+		if ( $saved_webhook ) {
+			return $saved_webhook;
+		}
+
 		$webhooks = self::pmpro_get_webhooks();
 
 		$webhook_id = false;
@@ -522,9 +593,40 @@ class PMProGateway_stripe extends PMProGateway {
 		$webhook_data['webhook_id'] = $webhook_id;
 		if ( $webhook_id ) {
 			$webhook_data['enabled_events'] = $webhook_events;
+
+			/// save to the database here to speed things up.
 		}
 		
+		
+		
 		return $webhook_data;
+	}
+
+	/**
+	 * Get a list of events that are missing between the created existing webhook and required webhook events for Paid Memberships Pro.
+	 * 
+	 * @since 2.4
+	 */
+	static function pmpro_check_missing_webhook_events( $webhook_events ) {
+
+		// Get required events
+		$pmpro_webhook_events = self::pmpro_webhook_events();
+		$event_missing = false;
+		foreach( $pmpro_webhook_events as $event ) {
+			if ( ! in_array( $event, $webhook_events ) ) {
+				$event_missing = true;
+			}
+		}
+
+		if ( $event_missing ) {
+			$events = array_unique( array_merge( $pmpro_webhook_events, $webhook_events ) );
+			// Force reset of indexes for Stripe.
+			$events = array_values( $events );
+		} else {
+			$events = false;
+		}
+
+		return $events;
 	}
 
 	/**
@@ -534,34 +636,38 @@ class PMProGateway_stripe extends PMProGateway {
 	 */
 	static function pmpro_update_webhook_events() {
 
+		// Also checks database to see if it's been saved.
 		$webhook = self::pmpro_does_webhook_exist();
 
 		if ( ! $webhook['webhook_id'] ) {
+			$create = self::pmpro_create_webhook();
+			return $create;
+		}
+
+		// Bail if no enabled events for a webhook are passed through.
+		if ( ! isset( $webhook['enabled_events'] ) ) {
 			return;
 		}
+		
+		$events = self::pmpro_check_missing_webhook_events( $webhook['enabled_events'] );
+		
+		if ( $events ) {
 
-		if ( pmpro_getOption( 'stripe_webhook_updated_' . $webhook['webhook_id'] ) ){
-			return;
-		}
-
-		$pmpro_webhook_events = self::pmpro_webhook_events();
-		$event_missing = false;
-		foreach( $pmpro_webhook_events as $event ) {
-			if ( ! in_array( $event, $webhook['enabled_events'] ) ) {
-				$event_missing = true;
-			}
-		}
-
-		if ( $event_missing ) {
-			$events = array_unique( array_merge( $pmpro_webhook_events, $webhook['enabled_events'] ) );
-
-			Stripe_Webhook::update( 
+			$update = Stripe_Webhook::update( 
 				$webhook['webhook_id'],
 				['enabled_events' => $events ]
 			);
 
-			// store this as already been updated.
-			pmpro_setOption( 'stripe_webhook_updated_' . $webhook['webhook_id'], true );
+			if ( $update ) {
+				pmpro_setOption( 'pmpro_stripe_webhook_updated', $webhook['webhook_id'] );
+				return $update;
+			} else {
+				//show warning message?
+			}
+			
+			
+		} else {
+			pmpro_setOption( 'pmpro_stripe_webhook_updated', $webhook['webhook_id'] );
 		}
 		
 	}
@@ -2130,11 +2236,13 @@ class PMProGateway_stripe extends PMProGateway {
 				if ( ! empty( $subscription ) ) {
 					$customer = $order->Gateway->getCustomer();
 					if ( ! $customer->delinquent && ! empty ( $subscription->current_period_end ) ) {
-						return $subscription->current_period_end;
+						$offset = get_option( 'gmt_offset' );						
+						$timestamp = $subscription->current_period_end + ( $offset * 3600 );
 					} elseif ( $customer->delinquent && ! empty( $subscription->current_period_start ) ) {
-						return $subscription->current_period_start;
+						$offset = get_option( 'gmt_offset' );						
+						$timestamp = $subscription->current_period_start + ( $offset * 3600 );
 					} else {
-						return $false;  // shouldn't really get here
+						$timestamp = $false;  // shouldn't really get here
 					}
 				}
 			}
