@@ -6,6 +6,8 @@ Tested up to: 6.0
 Requires PHP: 5.6
 Stable tag: 2.8.3
 
+This is just my awesome change (new file or code change etc.)
+
 WordPress membership plugin: restrict content, accept member subscriptions with recurring payment. Includes user registration, login, & profile fields
 
 == Description ==
