@@ -363,6 +363,11 @@ if ( $submit && $pmpro_msgt != "pmpro_error" ) {
 		pmpro_setMessage( __( "Are you a spammer?", 'paid-memberships-pro' ), "pmpro_error" );
 	}
 
+	// Check the nonce and if it's not valid, stop checkout registration.
+	if ( ! empty( $_REQUEST['_wpnonce'] ) && ! wp_verify_nonce( $_REQUEST['_wpnonce'], 'pmpro_checkout' ) ) {
+		pmpro_setMessage( __( 'You are not allowed to do that.', 'paid-memberships-pro' ), 'pmpro_error' );
+	}
+
 	if ( $pmpro_msgt == "pmpro_error" ) {
 		$pmpro_continue_registration = false;
 	} else {

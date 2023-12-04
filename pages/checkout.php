@@ -619,6 +619,7 @@ if ( empty( $default_gateway ) ) {
 			?>
 		</span>
 	</div>
+	<?php wp_nonce_field( 'pmpro_checkout' ); ?>
 </form>
 
 <?php do_action('pmpro_checkout_after_form'); ?>
