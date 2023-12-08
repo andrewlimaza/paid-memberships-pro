@@ -139,7 +139,16 @@ abstract class PMPro_Member_Edit_Panel {
 	 *
 	 * @since TBD
 	 */
-	public function save() {}
+	public function save() {
+		// Hook into this to save the options and return true/false based on custom conditions.
+		$saved = apply_filters( 'pmpro_member_' . $this->slug . '_panel_save', true, self::get_user() );
+
+		if ( $saved ) {
+			pmpro_setMessage( __( 'Member updated successfully.', 'paid-memberships-pro' ), 'pmpro_success' );
+		} else {
+			pmpro_setMessage( __( 'An error occurred, please try again.', 'paid-memberships-pro' ), 'pmpro_error' );
+		}
+	}
 
 	/**
 	 * Display the contents of the panel.
