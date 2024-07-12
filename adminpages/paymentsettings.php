@@ -127,35 +127,36 @@
 								<option value="live" <?php selected( $gateway_environment, "live" ); ?>><?php esc_html_e('Live/Production', 'paid-memberships-pro' );?></option>
 							</select>
 							<script>
-								function pmpro_changeGateway()
-								{
-									const gateway = jQuery('#gateway').val();
-									const gateway_environment = jQuery('#gateway_environment').val();
+								jQuery(document).ready(function() {
+									function pmpro_changeGateway() {
+										const gateway = jQuery('#gateway').val();
+										const gateway_environment = jQuery('#gateway_environment').val();
 
-									//hide all gateway options
-									jQuery('tr.gateway').hide();
-									jQuery('tr.gateway_'+gateway).show();
-									jQuery('tr.gateway_'+gateway+'_'+gateway_environment).show();
-									
-									//hide sub settings and toggle them on based on triggers
-									jQuery('tr.pmpro_toggle_target').hide();
-									jQuery( 'input[pmpro_toggle_trigger_for]' ).each( function() {										
-										if ( jQuery( this ).is( ':visible' ) ) {
-											pmpro_toggle_elements_by_selector( jQuery( this ).attr( 'pmpro_toggle_trigger_for' ), jQuery( this ).prop( 'checked' ) );
+										//hide all gateway options
+										jQuery('tr.gateway').hide();
+										jQuery('tr.gateway_'+gateway).show();
+										jQuery('tr.gateway_'+gateway+'_'+gateway_environment).show();
+										
+										//hide sub settings and toggle them on based on triggers
+										jQuery('tr.pmpro_toggle_target').hide();
+										jQuery( 'input[pmpro_toggle_trigger_for]' ).each( function() {										
+											if ( jQuery( this ).is( ':visible' ) ) {
+												pmpro_toggle_elements_by_selector( jQuery( this ).attr( 'pmpro_toggle_trigger_for' ), jQuery( this ).prop( 'checked' ) );
+											}
+										});							
+
+										if ( jQuery('#gateway').val() === '' ) {
+											jQuery('#pmpro-default-gateway-message').show();
+										} else {
+											jQuery('#pmpro-default-gateway-message').hide();
 										}
-									});							
-
-									if ( jQuery('#gateway').val() === '' ) {
-										jQuery('#pmpro-default-gateway-message').show();
-									} else {
-										jQuery('#pmpro-default-gateway-message').hide();
 									}
-								}
-								pmpro_changeGateway();
+									pmpro_changeGateway();
 
-								// Handle change events.
-								jQuery('#gateway, #gateway_environment').on('change', pmpro_changeGateway);
-							</script>
+									// Handle change events.
+									jQuery('#gateway, #gateway_environment').on('change', pmpro_changeGateway);
+								});
+								</script>
 						</td>
 					</tr>
 
