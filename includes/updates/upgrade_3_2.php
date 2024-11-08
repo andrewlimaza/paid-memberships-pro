@@ -36,7 +36,7 @@ function pmpro_show_upgrade_3_2_notice_wpp() {
 		return;
 	}
 
-	// Show a dismissable notice. Do not show a link to scrub data.
+	// Show a dismissible notice. Do not show a link to scrub data.
 	?>
 	<div class="notice notice-warning" id="pmpro-upgrade-3-2-notice">
 		<p><strong><?php esc_html_e( 'Important Notice: Paid Memberships Pro v3.2 Update', 'paid-memberships-pro' ); ?></strong></p>

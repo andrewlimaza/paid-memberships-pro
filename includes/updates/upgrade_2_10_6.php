@@ -31,7 +31,7 @@ function pmpro_upgrade_2_10_6_notice() {
 		return;
 	}
 
-	// Show a dismissable notice. Do not show a link to scrub data.
+	// Show a dismissible notice. Do not show a link to scrub data.
 	?>
 	<div class="notice notice-warning" id="pmpro-upgrade-2-10-6-notice">
 		<p>
