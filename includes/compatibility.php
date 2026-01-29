@@ -81,6 +81,11 @@ function pmpro_compatibility_checker() {
 			'check_type'	=> 'function',
 			'check_value'	=> 'pantheon_wp_env',
 		],
+		[
+			'file'        => 'two-factor.php',
+			'check_type'  => 'class',
+			'check_value' => 'Two_Factor_Core',
+		]
 	];
 
 	foreach ( $compat_checks as $value ) {
