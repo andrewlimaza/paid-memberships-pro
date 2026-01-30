@@ -362,7 +362,37 @@ function pmpro_login_forms_handler( $show_menu = true, $show_logout_link = true,
 				$message = _wp_privacy_account_request_confirmed_message( $request_id );
 				$msgt = 'pmpro_success';
 				break;
+		case 'two_factor_session_expired':
+			$message = esc_html__( 'Your two-factor authentication session has expired. Please log in again.', 'paid-memberships-pro' );
+			$msgt = 'pmpro_error';
+			break;
+		case 'two_factor_invalid':
+			$message = esc_html__( 'Invalid two-factor verification code.', 'paid-memberships-pro' );
+			$msgt = 'pmpro_error';
+			break;
+		case 'verify-2fa':
+			// Two-Factor Authentication verification page.
+			// Check if there's an error parameter with the specific error message.
+			if ( ! empty( $_GET['error'] ) ) {
+				$message = sanitize_text_field( urldecode( $_GET['error'] ) );
+				$msgt = 'pmpro_error';
+			}
+			break;
 		}
+	}
+
+	// Two-Factor Authentication errors.
+	// Check for error parameter when on 2FA verification page.
+	// Debug: Check what's actually in $_GET.
+	if ( isset( $_GET['action'] ) && $_GET['action'] === 'verify-2fa' ) {
+		error_log( 'PMPro 2FA Debug - GET keys: ' . print_r( array_keys( $_GET ), true ) );
+		error_log( 'PMPro 2FA Debug - Full GET: ' . print_r( $_GET, true ) );
+		error_log( 'PMPro 2FA Debug - REQUEST_URI: ' . $_SERVER['REQUEST_URI'] );
+	}
+	
+	if ( isset( $_GET['action'] ) && $_GET['action'] === 'verify-2fa' && ! empty( $_GET['error'] ) ) {
+		$message = sanitize_text_field( urldecode( $_GET['error'] ) );
+		$msgt = 'pmpro_error';
 	}
 
 	// Logged Out Errors.
@@ -463,6 +493,11 @@ function pmpro_login_forms_handler( $show_menu = true, $show_logout_link = true,
 	<div class="<?php echo esc_attr( pmpro_get_element_class( 'pmpro' ) ); ?>">
 		<section id="pmpro_login" class="<?php echo esc_attr( pmpro_get_element_class( 'pmpro_section', 'pmpro_login' ) ); ?>">
 			<?php
+				// Debug: Show what's happening with messages.
+				if ( isset( $_GET['action'] ) && $_GET['action'] === 'verify-2fa' ) {
+					echo '<!-- DEBUG: action=verify-2fa, error param=' . ( isset( $_GET['error'] ) ? 'YES' : 'NO' ) . ', message=' . ( $message ? 'SET' : 'EMPTY' ) . ', location=' . $location . ' -->';
+				}
+				
 				// Note we don't show messages on the widget form.
 				if ( $message && $location !== 'widget' ) {
 					echo '<div class="' . esc_attr( pmpro_get_element_class( 'pmpro_message ' . $msgt, esc_attr( $msgt ) ) ) . '">'. wp_kses_post( $message ) .'</div>';
@@ -483,11 +518,16 @@ function pmpro_login_forms_handler( $show_menu = true, $show_logout_link = true,
 					$action = false;
 				}
 
-				// Figure out which login view to show.
-				if ( ! is_user_logged_in() ) {
-					if ( ! in_array( $action, array( 'reset_pass', 'rp' ) ) ) {
-						// Login form.
-						if ( empty( $_GET['login'] ) || empty( $_GET['key'] ) ) {
+			// Figure out which login view to show.
+			if ( ! is_user_logged_in() ) {
+				if ( $action === 'verify-2fa' ) {
+					// Two-Factor Authentication verification form.
+					if ( function_exists( 'pmpro_two_factor_display_verification_form' ) ) {
+						pmpro_two_factor_display_verification_form();
+					}
+				} elseif ( ! in_array( $action, array( 'reset_pass', 'rp' ) ) ) {
+					// Login form.
+					if ( empty( $_GET['login'] ) || empty( $_GET['key'] ) ) {
 							$username = isset( $_REQUEST['username'] ) ? sanitize_text_field( $_REQUEST['username'] ) : NULL;
 							$redirect_to = isset( $_REQUEST['redirect_to'] ) ? esc_url_raw( $_REQUEST['redirect_to'] ) : '';
 
