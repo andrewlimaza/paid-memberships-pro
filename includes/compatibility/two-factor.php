@@ -468,7 +468,7 @@ function pmpro_two_factor_show_revalidation_notice( $user ) {
 	);
 	?>
 	
-	<div class="<?php echo esc_attr( pmpro_get_element_class( 'pmpro_message pmpro_alert', 'pmpro_two_factor_revalidate_notice' ) ); ?>">
+	<div id="pmpro_two_factor_revalidate_notice" class="<?php echo esc_attr( pmpro_get_element_class( 'pmpro_message pmpro_alert', 'pmpro_two_factor_revalidate_notice' ) ); ?>">
 		<p>
 			<?php esc_html_e( 'To update your Two-Factor Authentication settings, you need to verify your identity.', 'paid-memberships-pro' ); ?>
 		</p>
@@ -478,7 +478,12 @@ function pmpro_two_factor_show_revalidation_notice( $user ) {
 			</a>
 		</p>
 	</div>
-	
+	<script>
+		jQuery(document).ready(function(){
+			// Move the revalidate notice pmpro_two_factor_revalidate_notice below the H2 inside #pmpro_member_profile_edit-two-factor
+			jQuery('#pmpro_two_factor_revalidate_notice').insertAfter(jQuery('#pmpro_member_profile_edit-two-factor h2').first());
+		});
+	</script>
 	<?php
 }
 add_action( 'pmpro_show_user_profile', 'pmpro_two_factor_show_revalidation_notice', 15 );
