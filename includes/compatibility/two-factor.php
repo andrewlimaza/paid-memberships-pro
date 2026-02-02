@@ -223,14 +223,12 @@ function pmpro_two_factor_backup_codes_visual_feedback() {
 	}
 	?>
 	<script type="text/javascript">
-	(function($) {
+	jQuery(document).ready(function($) {
 		// Use event delegation to catch clicks even if handlers are added later
 		$(document).on('click', '.button-two-factor-backup-codes-generate', function(e) {
 			e.preventDefault();
 			e.stopImmediatePropagation(); // Stop other handlers from running
-			
-			console.log('PMPro 2FA: Generate button clicked');
-			
+						
 			// Check if wp.apiRequest is available
 			if (typeof wp === 'undefined' || typeof wp.apiRequest === 'undefined') {
 				console.error('wp.apiRequest is not available. Make sure wp-api-request script is loaded.');
@@ -242,15 +240,12 @@ function pmpro_two_factor_backup_codes_visual_feedback() {
 			var originalText = $btn.text();
 			
 			$btn.prop('disabled', true).text('<?php echo esc_js( __( 'Generating...', 'paid-memberships-pro' ) ); ?>');
-			
-			console.log('PMPro 2FA: Making API request to generate backup codes');
-			
+						
 			wp.apiRequest({
 				method: 'POST',
 				path: '<?php echo Two_Factor_Core::REST_NAMESPACE . '/generate-backup-codes'; ?>',
 				data: { user_id: <?php echo get_current_user_id(); ?> }
 			}).done(function(response) {
-				console.log('PMPro 2FA: Backup codes generated successfully', response);
 				
 				var $codesList = $('.two-factor-backup-codes-unused-codes');
 				$('.two-factor-backup-codes-wrapper').show();
@@ -277,8 +272,7 @@ function pmpro_two_factor_backup_codes_visual_feedback() {
 			return false;
 		});
 		
-		console.log('PMPro 2FA: Enhanced backup codes handler loaded');
-	})(jQuery);
+	});
 	</script>
 	<?php
 }
@@ -472,7 +466,7 @@ function pmpro_two_factor_show_revalidation_notice( $user ) {
 add_action( 'pmpro_show_user_profile', 'pmpro_two_factor_show_revalidation_notice', 15 );
 
 /**
- * Check if current request is a revalidation action.
+ * Check if current request is a revalidation action and valid.
  * 
  * @since TBD
  * 
@@ -483,13 +477,13 @@ function pmpro_two_factor_is_revalidation_request() {
 }
 
 /**
- * Intercept PMPro login shortcode during revalidation.
+ * Show revalidation form on the current page.
  * 
  * @since TBD
  * 
  * @return string Revalidation form HTML.
  */
-function pmpro_two_factor_intercept_login_shortcode( $content ) {
+function pmpro_two_factor_show_revalidation_form( $content ) {
 	global $pmpro_pages;
 
 	// Only override the content if we're on the PMPro login page and not another page.
@@ -501,13 +495,19 @@ function pmpro_two_factor_intercept_login_shortcode( $content ) {
 		return $content;
 	}
 	
+ 	// Make sure the member doesn't need to revalidate. If they're okay, just return the original content.
+	if ( Two_Factor_Core::current_user_can_update_two_factor_options( 'display' ) ) {
+		return $content;
+	}
+
+	// Builds a custom form for revalidating Two Factor Authentication.
 	$content = pmpro_two_factor_revalidate_handler();
 	return $content;
 }
-add_filter( 'the_content', 'pmpro_two_factor_intercept_login_shortcode', 1 );
+add_filter( 'the_content', 'pmpro_two_factor_show_revalidation_form', 1 );
 
 /**
- * Display revalidation form matching PMPro structure.
+ * Display revalidation form.
  * 
  * @since TBD
  * 
@@ -521,15 +521,17 @@ function pmpro_two_factor_revalidate_handler() {
 	
 	// Get current user.
 	$user = wp_get_current_user();
-	
+
 	// Get the provider.
 	$provider_key = ! empty( $_GET['provider'] ) ? sanitize_text_field( $_GET['provider'] ) : null;
 	$provider = Two_Factor_Core::get_provider_for_user( $user, $provider_key );
 	
+	$provider = false;
 	// Validate provider exists.
 	if ( ! $provider ) {
-		$content = '<div class="' . esc_attr( pmpro_get_element_class( 'pmpro_message pmpro_error' ) ) . '">';
+		$content = '<div id="pmpro-two-factor-invalid-provider" class="' . esc_attr( pmpro_get_element_class( 'pmpro_message pmpro_error' ) ) . '">';
 		$content .= '<p>' . esc_html__( 'Invalid verification method.', 'paid-memberships-pro' ) . '</p>';
+		$content .= '<p><a href="' . esc_url( pmpro_url( 'account' ) ) . '">' . esc_html__( 'Back to Account', 'paid-memberships-pro' ) . '</a></p>';
 		$content .= '</div>';
 		return $content;
 	}
@@ -703,6 +705,7 @@ function pmpro_two_factor_handle_revalidation() {
 	$is_post = ( 'POST' === strtoupper( $_SERVER['REQUEST_METHOD'] ) );
 	
 	if ( $is_post && ! empty( $_POST['action'] ) && $_POST['action'] === 'revalidate_2fa' ) {
+
 		// Process the revalidation.
 		$provider_key = ! empty( $_POST['provider'] ) ? sanitize_text_field( $_POST['provider'] ) : null;
 		$provider = Two_Factor_Core::get_provider_for_user( $user, $provider_key );
