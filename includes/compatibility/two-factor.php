@@ -404,36 +404,6 @@ function pmpro_two_factor_allow_frontend_updates( $can_update, $user_id ) {
 add_filter( 'two_factor_rest_api_can_edit_user', 'pmpro_two_factor_allow_frontend_updates', 10, 2 );
 
 /**
- * Hide Two-Factor plugin's revalidation notice on frontend.
- * 
- * We'll show our own custom notice instead.
- * 
- * @since TBD
- * 
- * @param int    $revalidate_time The grace time in seconds.
- * @param int    $user_id         The user ID.
- * @param string $context         The context (display or save).
- * 
- * @return int|false False to hide the Two-Factor notice, original value otherwise.
- */
-function pmpro_two_factor_hide_revalidation_notice( $revalidate_time, $user_id, $context ) {
-	// Only modify on the frontend for display context.
-	if ( is_admin() || $context !== 'display' ) {
-		return $revalidate_time;
-	}
-	
-	// Check if we're on the member profile edit page.
-	global $post;
-	if ( empty( $post ) || ( ! has_shortcode( $post->post_content, 'pmpro_member_profile_edit' ) && ! has_block( 'pmpro/member-profile-edit' ) ) ) {
-		return $revalidate_time;
-	}
-	
-	// Return false to hide Two-Factor's notice (we'll show our own).
-	return false;
-}
-add_filter( 'two_factor_revalidate_time', 'pmpro_two_factor_hide_revalidation_notice', 10, 3 );
-
-/**
  * Show custom revalidation notice on PMPro frontend profile edit page.
  * 
  * Checks if the user needs to revalidate and displays a PMPro-styled message
@@ -485,6 +455,16 @@ function pmpro_two_factor_show_revalidation_notice( $user ) {
 
 			// Delete the notice #pmpro_member_profile_edit-two-factor .two-factor-warning-revalidate-session
 			jQuery('#pmpro_member_profile_edit-two-factor .two-factor-warning-revalidate-session').remove();
+
+			// Make the buttons disabled.
+			jQuery('.button-two-factor-backup-codes-generate').prop('disabled', true);
+			jQuery('.reset-totp-key').prop('disabled', true);
+
+			// Add styliing to indicate disabled state.
+			jQuery('.button-two-factor-backup-codes-generate, .reset-totp-key').css({
+				'opacity': '0.5',
+				'cursor': 'not-allowed'
+			});
 		});
 	</script>
 	<?php
@@ -763,172 +743,6 @@ function pmpro_two_factor_handle_revalidation() {
 	
 }
 add_action( 'init', 'pmpro_two_factor_handle_revalidation', 1 );
-
-/**
- * Enqueue styles for Two Factor login form on PMPro login page.
- * 
- * @since TBD
- * 
- * @return void
- */
-function pmpro_two_factor_enqueue_login_styles() {
-	// Only load on login page with 2FA action.
-	if ( empty( $_GET['action'] ) || $_GET['action'] !== 'verify-2fa' ) {
-		return;
-	}
-	
-	// Add inline CSS for better 2FA form styling.
-	$custom_css = "
-		/* Two Factor Form Styling */
-		.pmpro_two_factor_wrap {
-			max-width: 100%;
-		}
-		
-		.pmpro_two_factor_wrap .pmpro_card_content {
-			padding: 2em;
-		}
-		
-		.pmpro_two_factor_wrap .pmpro_form_fields {
-			padding: 0;
-		}
-		
-		/* Provider content wrapper */
-		.pmpro_two_factor_wrap .pmpro_two_factor_provider_content {
-			padding: 1em 0;
-		}
-		
-		.pmpro_two_factor_wrap .pmpro_two_factor_provider_content > * {
-			margin-bottom: 1em;
-		}
-		
-		.pmpro_two_factor_wrap .pmpro_two_factor_provider_content > *:last-child {
-			margin-bottom: 0;
-		}
-		
-		/* Two Factor provider content spacing */
-		.pmpro_two_factor_wrap .two-factor-prompt {
-			margin: 0 0 1.5em 0;
-			font-size: 1em;
-			line-height: 1.6;
-		}
-		
-		.pmpro_two_factor_wrap label {
-			display: block;
-			margin-bottom: 0.5em;
-			font-weight: 600;
-		}
-		
-		.pmpro_two_factor_wrap input[type='text'],
-		.pmpro_two_factor_wrap input.authcode {
-			width: 100%;
-			padding: 12px;
-			font-size: 1.1em;
-			margin-bottom: 1em;
-			border: 1px solid #ddd;
-			border-radius: 3px;
-		}
-		
-		.pmpro_two_factor_wrap input.authcode {
-			letter-spacing: 0.3em;
-			text-align: center;
-			font-size: 1.5em;
-			padding: 15px;
-		}
-		
-		.pmpro_two_factor_wrap .button,
-		.pmpro_two_factor_wrap button[type='submit'],
-		.pmpro_two_factor_wrap input[type='submit'] {
-			margin-top: 0.5em;
-			margin-right: 0.5em;
-		}
-		
-		.pmpro_two_factor_wrap .button-primary {
-			background: var(--pmpro--color--accent, #2997c8);
-			color: white;
-			border: none;
-			padding: 12px 24px;
-			font-size: 1em;
-			cursor: pointer;
-			border-radius: 3px;
-		}
-		
-		.pmpro_two_factor_wrap .button-primary:hover {
-			background: var(--pmpro--color--accent-hover, #207fa7);
-		}
-		
-		.pmpro_two_factor_wrap .button-secondary,
-		.pmpro_two_factor_wrap .two-factor-email-resend input {
-			background: #f0f0f0;
-			color: #333;
-			border: 1px solid #ddd;
-			padding: 10px 20px;
-			font-size: 0.95em;
-			cursor: pointer;
-			border-radius: 3px;
-		}
-		
-		.pmpro_two_factor_wrap .button-secondary:hover,
-		.pmpro_two_factor_wrap .two-factor-email-resend input:hover {
-			background: #e0e0e0;
-		}
-		
-		/* Backup methods styling */
-		.pmpro_two_factor_wrap .pmpro_card_actions {
-			padding: 1.5em 2em;
-			background: #f9f9f9;
-			border-top: 1px solid #eee;
-		}
-		
-		.pmpro_two_factor_wrap .pmpro_card_actions p {
-			margin: 0 0 0.75em 0;
-			font-weight: 600;
-		}
-		
-		.pmpro_two_factor_backup_methods {
-			list-style: none;
-			padding: 0;
-			margin: 0;
-		}
-		
-		.pmpro_two_factor_backup_methods li {
-			margin-bottom: 0.5em;
-		}
-		
-		.pmpro_two_factor_backup_methods a {
-			color: var(--pmpro--color--accent, #2997c8);
-			text-decoration: none;
-			font-size: 0.95em;
-		}
-		
-		.pmpro_two_factor_backup_methods a:hover {
-			text-decoration: underline;
-		}
-		
-		/* Email resend button spacing */
-		.pmpro_two_factor_wrap .two-factor-email-resend {
-			margin-top: 1em;
-		}
-		
-		/* QR Code styling for TOTP */
-		.pmpro_two_factor_wrap .qrcode-canvas {
-			margin: 1em 0;
-			display: block;
-		}
-		
-		/* FIDO U2F styling */
-		.pmpro_two_factor_wrap #fido-u2f-login {
-			margin: 1.5em 0;
-		}
-		
-		/* Backup codes styling */
-		.pmpro_two_factor_wrap .backup-codes-wrapper {
-			margin: 1em 0;
-		}
-	";
-	
-	wp_add_inline_style( 'pmpro_frontend', $custom_css );
-}
-add_action( 'wp_enqueue_scripts', 'pmpro_two_factor_enqueue_login_styles', 20 );
 
 /**
  * Adjust the Two Factor revalidation URL to work with PMPro's frontend profile page.
