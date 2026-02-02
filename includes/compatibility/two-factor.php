@@ -526,7 +526,6 @@ function pmpro_two_factor_revalidate_handler() {
 	$provider_key = ! empty( $_GET['provider'] ) ? sanitize_text_field( $_GET['provider'] ) : null;
 	$provider = Two_Factor_Core::get_provider_for_user( $user, $provider_key );
 	
-	$provider = false;
 	// Validate provider exists.
 	if ( ! $provider ) {
 		$content = '<div id="pmpro-two-factor-invalid-provider" class="' . esc_attr( pmpro_get_element_class( 'pmpro_message pmpro_error' ) ) . '">';
