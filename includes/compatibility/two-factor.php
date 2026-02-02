@@ -482,6 +482,9 @@ function pmpro_two_factor_show_revalidation_notice( $user ) {
 		jQuery(document).ready(function(){
 			// Move the revalidate notice pmpro_two_factor_revalidate_notice below the H2 inside #pmpro_member_profile_edit-two-factor
 			jQuery('#pmpro_two_factor_revalidate_notice').insertAfter(jQuery('#pmpro_member_profile_edit-two-factor h2').first());
+
+			// Delete the notice #pmpro_member_profile_edit-two-factor .two-factor-warning-revalidate-session
+			jQuery('#pmpro_member_profile_edit-two-factor .two-factor-warning-revalidate-session').remove();
 		});
 	</script>
 	<?php
