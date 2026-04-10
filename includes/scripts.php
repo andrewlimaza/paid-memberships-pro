@@ -87,6 +87,25 @@ function pmpro_enqueue_scripts() {
 		wp_enqueue_script( 'pmpro_login' );
 	}
 
+	// Enqueue intl-tel-input on checkout and billing pages for the phone field.
+	$is_billing_page = ! empty( $pmpro_pages['billing'] ) && is_page( $pmpro_pages['billing'] );
+	if ( pmpro_is_checkout() || $is_billing_page ) {
+		wp_enqueue_style( 'intl-tel-input', plugins_url( 'includes/lib/intl-tel-input/css/intlTelInput.min.css', dirname( __FILE__ ) ), array(), '27.0.0', 'all' );
+		wp_enqueue_script( 'intl-tel-input', plugins_url( 'includes/lib/intl-tel-input/js/intlTelInputWithUtils.min.js', dirname( __FILE__ ) ), array(), '27.0.0', true );
+
+		// Get the user's billing country if available, otherwise use the default.
+		global $bcountry;
+		$initial_country = ! empty( $bcountry ) ? $bcountry : pmpro_get_default_country();
+
+		wp_register_script( 'pmpro_intl_tel_input', plugins_url( 'js/pmpro-intl-tel-input.js', dirname( __FILE__ ) ), array( 'intl-tel-input' ), PMPRO_VERSION, true );
+		wp_localize_script( 'pmpro_intl_tel_input', 'pmpro_intl_tel', array(
+			'default_country'          => pmpro_get_default_country(),
+			'initial_country'          => $initial_country,
+			'include_int_calling_code' => apply_filters( 'pmpro_include_int_calling_code', true ) ? '1' : '0',
+		) );
+		wp_enqueue_script( 'pmpro_intl_tel_input' );
+	}
+
 	// Enqueue select2 on front end and user profiles
 	if( pmpro_is_checkout() || 
 		! empty( $_REQUEST['pmpro_level'] ) ||

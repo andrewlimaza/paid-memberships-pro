@@ -132,6 +132,11 @@
 	}
 }
 
+/* intl-tel-input: Make container full width within form fields. */
+.pmpro_form_field-bphone .iti {
+	width: 100%;
+}
+
 /* Checkbox-specific field type */
 .pmpro_form_field-checkbox .pmpro_form_label {
 	cursor: pointer;
